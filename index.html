@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Eco-Intelligence - Site Specific Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        body { background-color: #020617; color: #e2e8f0; font-family: 'JetBrains+Mono', monospace; overflow-x: hidden; }
+        .glass { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+        .neon-text { text-shadow: 0 0 15px rgba(34, 197, 94, 0.6); }
+        .neon-border-green { border: 1px solid rgba(34, 197, 94, 0.3); box-shadow: 0 0 20px rgba(34, 197, 94, 0.1); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+        .chart-container { height: 300px; width: 100%; }
+        .rating-transition { transition: all 0.3s ease-in-out; }
+        .tip-card { border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.5); border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body class="p-4 lg:p-10">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-6">
+            <div>
+                <h1 class="text-4xl font-bold text-green-500 neon-text mb-2 uppercase tracking-tighter">Web Eco-Intelligence</h1>
+                <p class="text-slate-400 border-l-2 border-green-500 pl-4 text-sm">Resource Analytics Engine • SDG 12 Compliance • Professional Edition</p>
+            </div>
+            <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button onclick="switchTab('tracker')" id="btn-tracker" class="px-6 py-2 bg-green-600 rounded-lg font-bold transition-all duration-300">Eco-Tracker</button>
+                <button onclick="switchTab('game')" id="btn-game" class="px-6 py-2 rounded-lg font-bold hover:bg-slate-800 transition-all duration-300">Stress Test</button>
+            </div>
+        </div>
+
+        <!-- URL Input -->
+        <div class="glass p-4 rounded-2xl mb-8 flex flex-col md:flex-row gap-4 items-center neon-border-green">
+            <div class="relative flex-1 w-full">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold italic">HTTPS://</span>
+                <input type="text" id="urlInput" placeholder="youtube.com, google.de, netflix.com ..." 
+                       class="w-full bg-slate-950 border border-slate-800 p-4 pl-24 rounded-xl outline-none focus:border-green-500 transition text-green-400 font-bold uppercase tracking-widest">
+            </div>
+            <button onclick="analyzeURL()" class="w-full md:w-auto px-10 py-4 bg-green-600 hover:bg-green-400 text-slate-950 rounded-xl font-black transition-all transform active:scale-95">ANALYSIEREN</button>
+        </div>
+
+        <!-- Tracker Section -->
+        <div id="section-tracker" class="space-y-8">
+            
+            <!-- 1. GRAPH AT THE TOP -->
+            <div class="glass p-6 rounded-3xl neon-border-green relative overflow-hidden">
+                <div class="flex justify-between items-center mb-6 relative z-10">
+                    <div>
+                        <h3 class="font-black text-xl tracking-tighter uppercase">Traffic Load (Realtime)</h3>
+                        <p class="text-xs text-slate-400">Trend-Update in: <span id="timer-val" class="text-green-500 font-bold">20</span>s</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="display-url" class="text-sm font-bold text-blue-400 block tracking-widest uppercase">Initialisiere...</span>
+                        <span id="site-size-label" class="text-[10px] text-slate-500 uppercase font-bold tracking-widest italic">Berechne Clustergröße</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="liveChart"></canvas>
+                </div>
+
+                <!-- 2. RATING DIRECTLY UNDER THE GRAPH -->
+                <div class="mt-6 flex flex-col md:flex-row items-center gap-8 pt-6 border-t border-slate-800 relative z-10">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Efficiency Rating</span>
+                        <div id="efficiency-circle" class="w-24 h-24 rounded-full border-8 rating-transition flex items-center justify-center text-4xl font-black text-white bg-slate-950">A</div>
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <h4 class="text-green-400 font-bold uppercase mb-1 flex items-center gap-2 justify-center md:justify-start">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> SYSTEM STATUS
+                        </h4>
+                        <p id="efficiency-desc" class="text-sm text-slate-300 leading-relaxed italic">Warten auf Eingabe...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. STATS -->
+            <div class="stats-grid">
+                <div class="glass p-6 rounded-2xl border-l-4 border-green-500">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Stromverbrauch (Netz)</span>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-power" class="text-3xl font-black text-white tracking-tighter">0.00</span>
+                        <span class="text-green-500 font-bold text-xs italic">kWh/s</span>
+                    </div>
+                </div>
+                <div class="glass p-6 rounded-2xl border-l-4 border-blue-500">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Kühlwasser (DataCenter)</span>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-water" class="text-3xl font-black text-white tracking-tighter">0.00</span>
+                        <span class="text-blue-500 font-bold text-xs italic">L/s</span>
+                    </div>
+                </div>
+                <div class="glass p-6 rounded-2xl border-l-4 border-red-600">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">CO₂ Emissionen</span>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-co2" class="text-3xl font-black text-white tracking-tighter">0.00</span>
+                        <span class="text-red-600 font-bold text-xs italic">kg/s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ACTION PLAN & IMPROVEMENTS -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Site Improvements -->
+                <div class="glass p-8 rounded-3xl border border-blue-900/30">
+                    <h3 class="font-black text-lg mb-6 flex items-center gap-2 uppercase tracking-tighter">
+                        <span class="w-2 h-6 bg-blue-500 block"></span> Technische Optimierung
+                    </h3>
+                    <ul id="site-improvements" class="space-y-4 text-xs text-slate-300">
+                        <!-- JS Injection -->
+                    </ul>
+                </div>
+                <!-- User Tips -->
+                <div class="glass p-8 rounded-3xl border border-yellow-900/30">
+                    <h3 class="font-black text-lg mb-6 flex items-center gap-2 uppercase tracking-tighter">
+                        <span class="w-2 h-6 bg-yellow-500 block"></span> Tipps für Nutzer
+                    </h3>
+                    <ul id="user-tips" class="space-y-4 text-xs text-slate-300">
+                        <!-- JS Injection -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 5. RESOURCE ALLOCATION -->
+            <div class="glass p-8 rounded-3xl border border-slate-800">
+                <h3 class="font-black text-lg mb-6 flex items-center gap-2 uppercase tracking-tighter">
+                    <span class="w-2 h-6 bg-green-500 block"></span> Resource Allocation Breakdown
+                </h3>
+                <div id="breakdown-container" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- JS Injection -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Section -->
+        <div id="section-game" class="hidden">
+            <div class="glass p-10 rounded-3xl text-center max-w-3xl mx-auto neon-border-green">
+                <h2 class="text-3xl font-black text-green-500 mb-6 uppercase">Server Stress Test</h2>
+                <canvas id="gameCanvas" class="mx-auto mb-6 bg-black rounded-lg"></canvas>
+                <div class="flex justify-center gap-12 text-2xl font-black">
+                    <div>Nodes: <span id="game-score" class="text-green-500">0</span></div>
+                    <div>Heat: <span id="game-temp" class="text-red-500">20.0</span>°C</div>
+                </div>
+                <button id="start-game" class="mt-8 px-12 py-4 bg-green-600 rounded-xl font-black hover:bg-green-400 text-slate-950 transition-all uppercase tracking-widest">Start System Boot</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Globale Konfiguration & Daten ---
+        const siteConfigs = {
+            "youtube.com": { 
+                trafficScale: 1000, 
+                label: "Massive Global Video Node", 
+                breakdown: { "Video Streaming": 65, "Shorts Algorithm": 25, "Upload Logic": 10 },
+                rating: "C", 
+                desc: "Extremer Stromverbrauch durch transkodierung von Millionen Videos gleichzeitig.",
+                improvements: [
+                    "Wechsel zu AV1-Codec für 30% weniger Bandbreite.",
+                    "Betrieb von Rechenzentren mit 100% On-Site Solar.",
+                    "Verbesserte Hitze-Rückgewinnung in Server-Clustern."
+                ],
+                userTips: [
+                    "Auflösung auf 720p reduzieren bei kleinen Bildschirmen.",
+                    "Autoplay-Funktion in den Einstellungen deaktivieren.",
+                    "Hintergrund-Streaming ohne Video-Aktivität vermeiden."
+                ]
+            },
+            "google.com": { 
+                trafficScale: 850, 
+                label: "Global Search Infrastructure", 
+                breakdown: { "Search Indexing": 40, "Ads Engine": 30, "AI Inference": 30 },
+                rating: "A", 
+                desc: "Vorbildliche Effizienz durch minimale Datenpakete und hocheffizientes Caching.",
+                improvements: [
+                    "Minimierung der KI-Rechenleistung bei Standardanfragen.",
+                    "Optimierung der Dark-Mode-Ladezeiten auf OLED.",
+                    "Zentralisierung der CDN-Anfragen zur Wege-Verkürzung."
+                ],
+                userTips: [
+                    "Spezifische Suchbegriffe nutzen für weniger Anfragen.",
+                    "Lesezeichen für häufig besuchte Seiten anlegen.",
+                    "Cloud-Sync-Intervalle für Dokumente erhöhen."
+                ]
+            },
+            "netflix.com": { 
+                trafficScale: 700, 
+                label: "Premium Streaming Entity", 
+                breakdown: { "4K HDR Processing": 75, "UI Metadata": 15, "Security Sync": 10 },
+                rating: "D", 
+                desc: "Hoher ökologischer Fußabdruck pro User durch massive Datenmengen.",
+                improvements: [
+                    "Intelligente Bitraten-Reduktion in Peak-Zeiten.",
+                    "Einsatz von Liquid Cooling in Edge-Nodes.",
+                    "Verschlankung der Preview-Video-Auto-Loads."
+                ],
+                userTips: [
+                    "Download-Funktion für häufig gesehene Inhalte nutzen.",
+                    "Streaming beenden statt stundenlang zu pausieren.",
+                    "Geräte mit geringerem Stromverbrauch bevorzugen."
+                ]
+            },
+            "wikipedia.org": { 
+                trafficScale: 180, 
+                label: "Global Open Source Library", 
+                breakdown: { "Plain Text Delivery": 85, "Image Serving": 10, "User Authentication": 5 },
+                rating: "A", 
+                desc: "Exzellente Green-IT Bilanz durch Verzicht auf unnötige Skripte.",
+                improvements: [
+                    "Umstellung auf noch leichtere SVG-Vektorgrafiken.",
+                    "Reduktion der API-Antwortgröße für Bots.",
+                    "Optimierung der Bild-Skalierung im Backend."
+                ],
+                userTips: [
+                    "Text-only Modus für schnelles Nachschlagen nutzen.",
+                    "Bilder nur bei Bedarf laden (Browser-Plugins).",
+                    "Wikipedia-App im Offline-Modus verwenden."
+                ]
+            },
+            "default": { 
+                trafficScale: 15, 
+                label: "General Web Node", 
+                breakdown: { "JS Frameworks": 45, "Images/Media": 35, "Backend API": 20 },
+                rating: "B", 
+                desc: "Standard-Webseite mit durchschnittlicher Optimierung.",
+                improvements: [
+                    "Bilder durch WebP oder AVIF Formate ersetzen.",
+                    "Unbenutztes CSS und JavaScript entfernen.",
+                    "Server-seitiges Caching (Redis/Memcached) aktivieren."
+                ],
+                userTips: [
+                    "Ad-Blocker nutzen, um unnötige Skripte zu stoppen.",
+                    "Browser-Tabs bei Nichtbenutzung schließen.",
+                    "Automatisches Neuladen von Tabs deaktivieren."
+                ]
+            }
+        };
+
+        const ratingStyles = {
+            "A": { color: "border-green-500", glow: "0 0 25px rgba(34, 197, 94, 0.5)" },
+            "B": { color: "border-lime-400", glow: "0 0 20px rgba(163, 230, 53, 0.4)" },
+            "C": { color: "border-yellow-400", glow: "0 0 20px rgba(250, 204, 21, 0.4)" },
+            "D": { color: "border-orange-500", glow: "0 0 20px rgba(249, 115, 22, 0.4)" },
+            "E": { color: "border-red-600", glow: "0 0 30px rgba(220, 38, 38, 0.6)" }
+        };
+
+        // --- States & Charts ---
+        let currentURL = "youtube.com";
+        let liveData = Array(40).fill(0);
+        let chart;
+        let updateTimer = 20;
+        let baseValue = 100;
+        let targetBase = 100;
+        let consumption = { power: 0, water: 0, co2: 0 };
+
+        function initChart() {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.25)');
+            gradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(40).fill(""),
+                    datasets: [{
+                        data: liveData,
+                        borderColor: '#22c55e',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        fill: true,
+                        backgroundColor: gradient
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 400, easing: 'linear' },
+                    scales: {
+                        y: { beginAtZero: false, min: 0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } } },
+                        x: { display: false }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // --- Kern-Funktionalität ---
+        function analyzeURL() {
+            const input = document.getElementById('urlInput').value.toLowerCase().trim();
+            if(!input) return;
+            currentURL = input;
+            
+            const configKey = Object.keys(siteConfigs).find(k => currentURL.includes(k)) || "default";
+            const config = siteConfigs[configKey];
+            const ratingInfo = ratingStyles[config.rating];
+            
+            // UI Updates (Sofort)
+            targetBase = 100 * (0.6 + Math.random() * 0.8);
+            document.getElementById('display-url').innerText = currentURL;
+            document.getElementById('site-size-label').innerText = config.label;
+            
+            // Rating (Instant)
+            const circle = document.getElementById('efficiency-circle');
+            circle.innerText = config.rating;
+            circle.className = `w-24 h-24 rounded-full border-8 rating-transition flex items-center justify-center text-4xl font-black mb-4 ${ratingInfo.color}`;
+            circle.style.boxShadow = ratingInfo.glow;
+            document.getElementById('efficiency-desc').innerText = config.desc;
+            
+            // Listen & Breakdown (Instant)
+            updateLists(config);
+            updateBreakdown(config);
+            
+            updateTimer = 20; 
+        }
+
+        function updateLists(config) {
+            const siteImp = document.getElementById('site-improvements');
+            const userTip = document.getElementById('user-tips');
+            
+            siteImp.innerHTML = config.improvements.map(item => `
+                <li class="tip-card">
+                    <span class="text-blue-400 font-bold block mb-1 uppercase tracking-tighter text-[10px]">Lösung</span>
+                    ${item}
+                </li>
+            `).join('');
+
+            userTip.innerHTML = config.userTips.map(item => `
+                <li class="tip-card" style="border-color: #eab308">
+                    <span class="text-yellow-500 font-bold block mb-1 uppercase tracking-tighter text-[10px]">Nutzer-Tipp</span>
+                    ${item}
+                </li>
+            `).join('');
+        }
+
+        function updateBreakdown(config) {
+            const container = document.getElementById('breakdown-container');
+            container.innerHTML = '';
+            Object.entries(config.breakdown).forEach(([key, val]) => {
+                container.innerHTML += `
+                    <div class="glass p-5 rounded-2xl border border-slate-800 hover:border-green-500/30 transition-all">
+                        <div class="flex justify-between text-[10px] font-bold mb-4 uppercase tracking-widest">
+                            <span class="text-slate-500">${key}</span>
+                            <span class="text-white">${val}%</span>
+                        </div>
+                        <div class="w-full bg-slate-950 rounded-full h-2 shadow-inner">
+                            <div class="bg-gradient-to-r from-blue-600 via-green-500 to-green-300 h-full rounded-full transition-all duration-1000" style="width: ${val}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function runSimulation() {
+            const configKey = Object.keys(siteConfigs).find(k => currentURL.includes(k)) || "default";
+            const config = siteConfigs[configKey];
+
+            // Graph Glättung
+            baseValue += (targetBase - baseValue) * 0.05;
+            const time = Date.now() / 1000;
+            const noise = (Math.sin(time * 1.5) * 8) + (Math.sin(time * 0.4) * 12) + (Math.random() * 4);
+            const currentGraphVal = Math.max(10, baseValue + noise);
+            
+            liveData.push(currentGraphVal);
+            liveData.shift();
+            chart.update('none');
+
+            // Timer (20s)
+            updateTimer -= 0.016; 
+            if(updateTimer <= 0) {
+                updateTimer = 20;
+                targetBase = 100 * (0.6 + Math.random() * 0.8);
+            }
+            document.getElementById('timer-val').innerText = Math.max(0, Math.ceil(updateTimer));
+
+            // Skalierte Berechnung
+            const loadFactor = (currentGraphVal / 100) * config.trafficScale;
+            consumption.power = loadFactor * 0.05;
+            consumption.water = loadFactor * 0.022;
+            consumption.co2 = loadFactor * 0.016;
+
+            document.getElementById('stat-power').innerText = consumption.power.toFixed(config.trafficScale > 20 ? 2 : 4);
+            document.getElementById('stat-water').innerText = consumption.water.toFixed(config.trafficScale > 20 ? 2 : 4);
+            document.getElementById('stat-co2').innerText = consumption.co2.toFixed(config.trafficScale > 20 ? 2 : 4);
+
+            requestAnimationFrame(runSimulation);
+        }
+
+        // --- App Steuerung ---
+        function switchTab(tab) {
+            document.getElementById('section-tracker').classList.toggle('hidden', tab !== 'tracker');
+            document.getElementById('section-game').classList.toggle('hidden', tab !== 'game');
+            document.getElementById('btn-tracker').classList.toggle('bg-green-600', tab === 'tracker');
+            document.getElementById('btn-game').classList.toggle('bg-green-600', tab === 'game');
+        }
+
+        // --- Mini Game Logic ---
+        const gCanvas = document.getElementById('gameCanvas');
+        const gCtx = gCanvas.getContext('2d');
+        gCanvas.width = 600; gCanvas.height = 300;
+        let gameActive = false, score = 0, temp = 20, nodes = [];
+
+        function gameLoop() {
+            if(!gameActive) return;
+            gCtx.clearRect(0,0,600,300);
+            temp += 0.06;
+            document.getElementById('game-temp').innerText = temp.toFixed(1);
+
+            nodes.forEach((n, i) => {
+                n.life -= 0.65;
+                gCtx.beginPath();
+                gCtx.arc(n.x, n.y, 25 + Math.sin(Date.now()/80)*4, 0, Math.PI*2);
+                gCtx.fillStyle = `rgba(239, 68, 68, ${n.life/100})`;
+                gCtx.shadowBlur = 10; gCtx.shadowColor = 'red';
+                gCtx.fill();
+                gCtx.shadowBlur = 0;
+                if(n.life <= 0) { nodes.splice(i,1); temp += 12; }
+            });
+
+            if(temp >= 100) { gameActive = false; alert("KRITISCHER FEHLER: Server-Cluster wegen Hitze abgeschaltet! Score: " + score); }
+            else requestAnimationFrame(gameLoop);
+        }
+
+        gCanvas.onmousedown = (e) => {
+            const rect = gCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (600 / rect.width);
+            const y = (e.clientY - rect.top) * (300 / rect.height);
+            nodes.forEach((n, i) => {
+                if(Math.sqrt((x-n.x)**2 + (y-n.y)**2) < 35) {
+                    nodes.splice(i,1); score++; temp = Math.max(20, temp-3.5);
+                    document.getElementById('game-score').innerText = score;
+                }
+            });
+        };
+
+        document.getElementById('start-game').onclick = () => {
+            gameActive = true; score = 0; temp = 20; nodes = [];
+            document.getElementById('start-game').style.display = 'none';
+            setInterval(() => { if(gameActive) nodes.push({x: Math.random()*540+30, y: Math.random()*240+30, life: 100}) }, 750);
+            gameLoop();
+        };
+
+        window.onload = () => {
+            initChart();
+            analyzeURL(); // Startet mit youtube.com als Default
+            runSimulation();
+        };
+    </script>
+</body>
+</html>
+
